@@ -56,9 +56,63 @@ struct hamster {
 	float dy;
 	uint8_t color;
 	float px, py;
+	int hp;
 };
 
 static struct hamster p1, p2;
+
+uint32_t heart_sprite[32] = {
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00011100011100000000000000000000, /* do not wrap please */
+	0b00111110111110000000000000000000, /* do not wrap please */
+	0b01111111111111000000000000000000, /* do not wrap please */
+	0b01111111111111000000000000000000, /* do not wrap please */
+	0b01111111111111000000000000000000, /* do not wrap please */
+	0b01111111111111000000000000000000, /* do not wrap please */
+	0b00111111111110000000000000000000, /* do not wrap please */
+	0b00011111111100000000000000000000, /* do not wrap please */
+	0b00001111111000000000000000000000, /* do not wrap please */
+	0b00000111110000000000000000000000, /* do not wrap please */
+	0b00000011100000000000000000000000, /* do not wrap please */
+	0b00000001000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+	0b00000000000000000000000000000000, /* do not wrap please */
+};
+
+static void draw_sprite(int x0, int y0, uint32_t sprite[32], int color, bool transp)
+{
+	int x1 = x0 + 32;
+	int y1 = y0 + 32;
+
+	for (int y = y0; y < y1; y++) {
+		for (int x = x0; x < x1; x++) {
+			bool visible = (sprite[(y - y0)] << (x - x0)) >> 31;
+
+			if (!visible && transp)
+				continue;
+
+			int c = color * visible;
+			tft_draw_pixel(x, y, c);
+		}
+	}
+}
 
 #define WIDTH 160
 #define HEIGHT 120
@@ -140,12 +194,14 @@ static void reset_game(void)
 	p1.y = tft_height - 31;
 	p1.px = -1;
 	p1.py = -1;
+	p1.hp = 3;
 
 	p2.color = GREEN;
 	p2.dy = 0;
 	p2.y = tft_height - 31;
 	p2.px = -1;
 	p2.py = -1;
+	p2.hp = 3;
 }
 
 /*
@@ -165,6 +221,12 @@ static void tft_task(void)
 
 		tft_draw_rect(0, p1.y, 23, p1.y + 31, p1.color);
 		tft_draw_rect(tft_width - 24, p2.y, tft_width - 1, p2.y + 31, p2.color);
+
+		for (int i = 0; i < p1.hp; i++)
+			draw_sprite(28 + 16 * i, 4, heart_sprite, RED, true);
+
+		for (int i = 0; i < p2.hp; i++)
+			draw_sprite(tft_width - 17 - (28 + 16 * i), 4, heart_sprite, GREEN, true);
 
 		if ((p1.y >= tft_height - 31) && p1l_btn)
 			p1.dy = -tft_height * 1.15;
@@ -206,11 +268,23 @@ static void tft_task(void)
 		if (p2.px >= 0)
 			tft_draw_rect(p2.px - 1, p2.py - 1, p2.px + 1, p2.py + 1, p2.color);
 
+		if ((p1.py <= p2.py + 1) && (p1.py >= p2.py - 1)) {
+			/* Projectiles are at about the same height. */
+
+			if (p1.px >= p2.px) {
+				/* They must have collided. */
+				p1.px = -1;
+				p2.px = -1;
+			}
+		}
+
+		float pdistance = 0.5 * (float)tft_width / fps;
+
 		if (p1.px >= 0)
-			p1.px += 0.5 * (float)tft_width / fps;
+			p1.px += pdistance;
 
 		if (p2.px >= 0)
-			p2.px -= 0.5 * (float)tft_width / fps;
+			p2.px -= pdistance;
 
 		if (p1.px >= tft_width)
 			p1.px = -1;
