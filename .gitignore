@@ -1,0 +1,9 @@
+/build/
+*.zip
+*~
+*.bak
+*-bak
+*#*
+*-cache
+_autosave-*
+*-backups/
