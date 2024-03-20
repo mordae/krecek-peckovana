@@ -271,6 +271,18 @@ static void tft_task(void)
 		p2.dy += (float)tft_height / fps;
 
 		/*
+		 * Fall boosting
+		 */
+
+		if (p1.dy > 0 && p1l_btn) {
+			p1.dy += (float)tft_height / fps;
+		}
+
+		if (p2.dy > 0 && p2l_btn) {
+			p2.dy += (float)tft_height / fps;
+		}
+
+		/*
 		 * Cap acceleration and keep hamsters above floor
 		 */
 
