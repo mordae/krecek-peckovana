@@ -268,13 +268,15 @@ static void tft_task(void)
 		if (p2.px >= 0)
 			tft_draw_rect(p2.px - 1, p2.py - 1, p2.px + 1, p2.py + 1, p2.color);
 
-		if ((p1.py <= p2.py + 1) && (p1.py >= p2.py - 1)) {
-			/* Projectiles are at about the same height. */
+		if (p1.px >= 0 && p2.px >= 0) {
+			if ((p1.py <= p2.py + 1) && (p1.py >= p2.py - 1)) {
+				/* Projectiles are at about the same height. */
 
-			if (p1.px >= p2.px) {
-				/* They must have collided. */
-				p1.px = -1;
-				p2.px = -1;
+				if (p1.px >= p2.px) {
+					/* They must have collided. */
+					p1.px = -1;
+					p2.px = -1;
+				}
 			}
 		}
 
