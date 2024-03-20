@@ -219,6 +219,10 @@ static void tft_task(void)
 
 		float bottom = tft_height - 31;
 
+		/*
+		 * Draw hearts
+		 */
+
 		tft_draw_rect(0, p1.y, 23, p1.y + 31, p1.color);
 		tft_draw_rect(tft_width - 24, p2.y, tft_width - 1, p2.y + 31, p2.color);
 
@@ -227,6 +231,10 @@ static void tft_task(void)
 
 		for (int i = 0; i < p2.hp; i++)
 			draw_sprite(tft_width - 17 - (28 + 16 * i), 4, heart_sprite, GREEN, true);
+
+		/*
+		 * Jumping
+		 */
 
 		if ((p1.y >= tft_height - 31) && p1l_btn)
 			p1.dy = -tft_height * 1.15;
@@ -244,11 +252,23 @@ static void tft_task(void)
 			p2.py = p2.y + 16;
 		}
 
+		/*
+		 * Vertical movement
+		 */
+
 		p1.y += p1.dy / fps;
 		p2.y += p2.dy / fps;
 
+		/*
+		 * Gravitation
+		 */
+
 		p1.dy += (float)tft_height / fps;
 		p2.dy += (float)tft_height / fps;
+
+		/*
+		 * Cap acceleration and keep hamsters above floor
+		 */
 
 		if (p1.dy > tft_height)
 			p1.dy = tft_height;
@@ -262,11 +282,19 @@ static void tft_task(void)
 		if (p2.y >= bottom)
 			p2.y = bottom;
 
+		/*
+		 * Draw hamsters
+		 */
+
 		if (p1.px >= 0)
 			tft_draw_rect(p1.px - 1, p1.py - 1, p1.px + 1, p1.py + 1, p1.color);
 
 		if (p2.px >= 0)
 			tft_draw_rect(p2.px - 1, p2.py - 1, p2.px + 1, p2.py + 1, p2.color);
+
+		/*
+		 * Mid-air projectile collissions
+		 */
 
 		if (p1.px >= 0 && p2.px >= 0) {
 			if ((p1.py <= p2.py + 1) && (p1.py >= p2.py - 1)) {
@@ -279,6 +307,10 @@ static void tft_task(void)
 				}
 			}
 		}
+
+		/*
+		 * Horizontal projectile movement
+		 */
 
 		float pdistance = 0.5 * (float)tft_width / fps;
 
@@ -293,6 +325,10 @@ static void tft_task(void)
 
 		if (p2.px < 0)
 			p2.px = -1;
+
+		/*
+		 * FPS and others
+		 */
 
 		char buf[64];
 
