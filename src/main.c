@@ -316,6 +316,34 @@ static void tft_task(void)
 		 * Projectile-hamster collissions
 		 */
 
+		if (p1.px >= 0) {
+			if (p1.py >= p2.y && p1.py < (p2.y + 32)) {
+				if (p1.px >= tft_width - 24) {
+					p1.px = -1;
+					p2.hp -= 1;
+
+					if (p2.hp < 1) {
+						// TODO
+						p2.hp = 0;
+					}
+				}
+			}
+		}
+
+		if (p2.px >= 0) {
+			if (p2.py >= p1.y && p2.py < (p1.y + 32)) {
+				if (p2.px < 24) {
+					p2.px = -1;
+					p1.hp -= 1;
+
+					if (p1.hp < 1) {
+						// TODO
+						p1.hp = 0;
+					}
+				}
+			}
+		}
+
 		/*
 		 * Horizontal projectile movement
 		 */
