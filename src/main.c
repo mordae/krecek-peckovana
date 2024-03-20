@@ -220,11 +220,15 @@ static void tft_task(void)
 		float bottom = tft_height - 31;
 
 		/*
-		 * Draw hearts
+		 * Draw hamsters
 		 */
 
 		tft_draw_rect(0, p1.y, 23, p1.y + 31, p1.color);
 		tft_draw_rect(tft_width - 24, p2.y, tft_width - 1, p2.y + 31, p2.color);
+
+		/*
+		 * Draw hearts
+		 */
 
 		for (int i = 0; i < p1.hp; i++)
 			draw_sprite(28 + 16 * i, 4, heart_sprite, RED, true);
@@ -283,7 +287,7 @@ static void tft_task(void)
 			p2.y = bottom;
 
 		/*
-		 * Draw hamsters
+		 * Draw projectiles
 		 */
 
 		if (p1.px >= 0)
@@ -307,6 +311,10 @@ static void tft_task(void)
 				}
 			}
 		}
+
+		/*
+		 * Projectile-hamster collissions
+		 */
 
 		/*
 		 * Horizontal projectile movement
