@@ -27,13 +27,14 @@
 
 #include <task.h>
 #include <tft.h>
+#include <dap.h>
 
-#define TFT_LED_PWM 6
+#define DAP_SWDIO_PIN 25
+#define DAP_SWCLK_PIN 24
 
-#define P1L_PIN 9
-#define P1R_PIN 10
-#define P2L_PIN 18
-#define P2R_PIN 19
+#define DAP_CORE0 0x01002927u
+#define DAP_CORE1 0x11002927u
+#define DAP_RESCUE 0xf1002927u
 
 #define RED 240
 #define YELLOW 242
@@ -42,10 +43,19 @@
 #define GRAY 8
 #define WHITE 15
 
-static int p1l_btn = 0;
-static int p1r_btn = 0;
-static int p2l_btn = 0;
-static int p2r_btn = 0;
+#define SLAVE_A_PIN 22
+#define SLAVE_B_PIN 23
+#define SLAVE_Y_PIN 24
+#define SLAVE_X_PIN 25
+
+#define SLAVE_START_PIN 19
+#define SLAVE_SELECT_PIN 20
+
+static bool p1_up_btn = 0;
+static bool p1_gun_btn = 0;
+
+static bool p2_up_btn = 0;
+static bool p2_gun_btn = 0;
 
 static void stats_task(void);
 static void tft_task(void);
@@ -147,30 +157,36 @@ static void stats_task(void)
 	}
 }
 
+inline static int slave_gpio_get(int pin)
+{
+	uint32_t tmp;
+
+	if (!dap_peek(0x40014000 + 8 * pin, &tmp)) {
+		puts("slave_gpio_get: dap_peek failed");
+		return 0;
+	}
+
+	return (tmp >> 17) & 1;
+}
+
 /*
  * Processes joystick and button inputs.
  */
 static void input_task(void)
 {
-	// p1
-	gpio_init(P1L_PIN);
-	gpio_pull_up(P1L_PIN);
-
-	gpio_init(P1R_PIN);
-	gpio_pull_up(P1R_PIN);
-
-	// p2
-	gpio_init(P2L_PIN);
-	gpio_pull_up(P2L_PIN);
-
-	gpio_init(P2R_PIN);
-	gpio_pull_up(P2R_PIN);
+	task_sleep_ms(300);
 
 	while (true) {
-		p1l_btn = !gpio_get(P1L_PIN);
-		p1r_btn = !gpio_get(P1R_PIN);
-		p2l_btn = !gpio_get(P2L_PIN);
-		p2r_btn = !gpio_get(P2R_PIN);
+		p1_up_btn = !slave_gpio_get(SLAVE_A_PIN);
+		p1_gun_btn = !slave_gpio_get(SLAVE_B_PIN);
+
+		p2_up_btn = !slave_gpio_get(SLAVE_X_PIN);
+		p2_gun_btn = !slave_gpio_get(SLAVE_Y_PIN);
+
+		if (!slave_gpio_get(SLAVE_SELECT_PIN)) {
+			puts("SELECT");
+			dap_poke(0x40018004, 0x331f);
+		}
 
 		task_sleep_ms(10);
 	}
@@ -240,18 +256,18 @@ static void tft_task(void)
 		 * Jumping
 		 */
 
-		if ((p1.y >= tft_height - 31) && p1l_btn)
+		if ((p1.y >= tft_height - 31) && p1_up_btn)
 			p1.dy = -tft_height * 1.15;
 
-		if ((p2.y >= tft_height - 31) && p2l_btn)
-			p2.dy = -tft_height * 1.15;
-
-		if ((p1.px < 0) && p1r_btn) {
+		if ((p1.px < 0) && p1_gun_btn) {
 			p1.px = 24;
 			p1.py = p1.y + 16;
 		}
 
-		if ((p2.px < 0) && p2r_btn) {
+		if ((p2.y >= tft_height - 31) && p2_up_btn)
+			p2.dy = -tft_height * 1.15;
+
+		if ((p2.px < 0) && p2_gun_btn) {
 			p2.px = tft_width - 25;
 			p2.py = p2.y + 16;
 		}
@@ -274,11 +290,11 @@ static void tft_task(void)
 		 * Fall boosting
 		 */
 
-		if (p1.dy > 0 && p1l_btn) {
+		if (p1.dy > 0 && p1_up_btn) {
 			p1.dy += (float)tft_height / fps;
 		}
 
-		if (p2.dy > 0 && p2l_btn) {
+		if (p2.dy > 0 && p2_up_btn) {
 			p2.dy += (float)tft_height / fps;
 		}
 
@@ -390,23 +406,6 @@ static void tft_task(void)
 	}
 }
 
-static void backlight_init(void)
-{
-	int slice = pwm_gpio_to_slice_num(TFT_LED_PWM);
-	int chan = pwm_gpio_to_channel(TFT_LED_PWM);
-
-	pwm_config conf = pwm_get_default_config();
-	pwm_init(slice, &conf, false);
-	pwm_set_clkdiv_int_frac(slice, 1, 0);
-	pwm_set_wrap(slice, 99);
-	pwm_set_chan_level(slice, chan, 100);
-	pwm_set_enabled(slice, true);
-
-	gpio_init(TFT_LED_PWM);
-	gpio_set_dir(TFT_LED_PWM, GPIO_OUT);
-	gpio_set_function(TFT_LED_PWM, GPIO_FUNC_PWM);
-}
-
 int main()
 {
 	stdio_usb_init();
@@ -424,10 +423,36 @@ int main()
 	for (int i = 0; i < 16; i++)
 		srand(adc_read() + random());
 
-	backlight_init();
 	tft_init();
 
 	printf("Hello, have a nice and productive day!\n");
+
+	dap_init(DAP_SWDIO_PIN, DAP_SWCLK_PIN);
+	dap_reset();
+
+	dap_select_target(DAP_CORE0);
+	unsigned idcode = dap_read_idcode();
+	printf("idcode = %#010x\n", idcode);
+	dap_setup_mem((uint32_t *)&idcode);
+	printf("idr = %#010x\n", idcode);
+	dap_noop();
+
+	/* Un-reset stuff that's ok with clk_sys and clk_ref */
+	dap_poke(0x4000c000, 0x1e3bc9d);
+
+	/* Enable display backlight. */
+	dap_poke(0x4001406c, 0x331f);
+
+	/* Enable button input + pull-ups. */
+	dap_poke(0x4001c000 + 4 + 4 * SLAVE_A_PIN, (1 << 3) | (1 << 6));
+	dap_poke(0x4001c000 + 4 + 4 * SLAVE_B_PIN, (1 << 3) | (1 << 6));
+	dap_poke(0x4001c000 + 4 + 4 * SLAVE_X_PIN, (1 << 3) | (1 << 6));
+	dap_poke(0x4001c000 + 4 + 4 * SLAVE_Y_PIN, (1 << 3) | (1 << 6));
+
+	dap_poke(0x4001c000 + 4 + 4 * SLAVE_SELECT_PIN, (1 << 3) | (1 << 6));
+
+	/* Make sure we do not turn outselves off. */
+	dap_poke(0x40018004, 0x001f);
 
 	multicore_launch_core1(task_run_loop);
 	task_run_loop();

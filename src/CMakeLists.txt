@@ -5,7 +5,7 @@ include($ENV{PICO_SDK_PATH}/pico_sdk_init.cmake)
 project(peckovana)
 pico_sdk_init()
 
-add_executable(peckovana main.c)
+add_executable(peckovana main.c dap.c)
 
 add_subdirectory(vendor/pico-stdio-usb-simple)
 
@@ -18,8 +18,8 @@ target_compile_definitions(
     TFT_CS_PIN=1
     TFT_SCK_PIN=2
     TFT_MOSI_PIN=3
-    TFT_RST_PIN=4
-    TFT_RS_PIN=5
+    TFT_RST_PIN=6
+    TFT_RS_PIN=4
     TFT_SPI_DEV=spi0
     TFT_BAUDRATE=80000000
     TFT_SWAP_XY=1
